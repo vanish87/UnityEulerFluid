@@ -1,0 +1,3 @@
+[submodule "UnityTools"]
+	path = UnityTools
+	url = https://github.com/vanish87/UnityTools.git
