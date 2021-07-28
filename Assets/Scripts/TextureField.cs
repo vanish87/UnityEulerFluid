@@ -29,11 +29,13 @@ namespace UnityTools.Common
 		[SerializeField] protected RenderTextureFormat format = RenderTextureFormat.ARGBFloat;
 		[SerializeField] protected Texture data;
 
-		public virtual void Init(int3 size)
+		public virtual void Init(int3 size, RenderTextureFormat format = RenderTextureFormat.ARGBFloat)
 		{
 			this.Release();
 
             this.fieldSize = size;
+            this.format = format;
+            
 			var rt = new RenderTexture(this.fieldSize.x, this.fieldSize.y, this.fieldSize.z, this.format);
 			rt.enableRandomWrite = true;
             rt.name = this.shaderName;
