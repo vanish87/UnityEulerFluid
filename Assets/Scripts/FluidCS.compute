@@ -1,0 +1,9 @@
+#pragma kernel Advert
+
+RWTexture2D<float4> Velocity;
+
+[numthreads(8,8,1)]
+void Advert (uint3 id : SV_DispatchThreadID)
+{
+    
+}

@@ -14,8 +14,8 @@ namespace UnityTools.Rendering
         protected DisposableMaterial material;
         protected MeshRenderer meshRenderer;
         protected MeshFilter meshFilter;
-        protected IField field;
-		protected IField Field => this.field ??= this.GetComponent<IField>() ?? this.GetComponentInParent<IField>();
+        protected IFieldTexture field;
+		protected IFieldTexture Field => this.field ??= this.GetComponent<IFieldTexture>() ?? this.GetComponentInParent<IFieldTexture>();
 
         protected void OnEnable()
         {
@@ -28,7 +28,7 @@ namespace UnityTools.Rendering
         }
         protected void Update()
         {
-            this.material.Data.mainTexture = this.Field?.Field;
+            this.material.Data.mainTexture = this.Field?.FieldAsTexture;
         }
         protected void OnDisable()
         {
