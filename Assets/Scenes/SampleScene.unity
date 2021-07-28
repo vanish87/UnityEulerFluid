@@ -199,13 +199,13 @@ MonoBehaviour:
   data:
     timeStep: 0.01
     fieldSize:
-      x: 512
-      y: 512
+      x: 1024
+      y: 1024
       z: 1
     velocityDissipation: 0.99
     pressureDissipation: 0.99
-    diffuseIteration: 10
-    pressureIteration: 50
+    diffuseIteration: 20
+    pressureIteration: 80
     viscosity: 1
 --- !u!1 &525695567
 GameObject:
