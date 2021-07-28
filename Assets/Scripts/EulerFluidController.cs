@@ -29,6 +29,7 @@ namespace EulerFluid
 
 		public enum Kernel
 		{
+			ApplyBoundary,
 			AdvectVelocity,
 			AdvectPressure,
 			Diffuse,
@@ -84,12 +85,19 @@ namespace EulerFluid
 		}
         protected void Step()
         {
+			// this.ApplyBoundary();
             this.Advect();
             this.SolveDiffuse();
             this.AddForce();
             this.ComputePressure();
             this.SubtractPressureGradient();
         }
+        protected void ApplyBoundary()
+        {
+            var s = this.Configure.D.fieldSize;
+            this.dispatcher.Dispatch(Kernel.ApplyBoundary, s.x, s.y, s.z);
+            GPUBufferVariable<float3>.SwapBuffer(this.gpuData.velocityRead, this.gpuData.velocityWrite);
+		}
 
         protected void Advect()
         {
@@ -127,8 +135,9 @@ namespace EulerFluid
             var s = this.Configure.D.fieldSize;
             this.dispatcher.Dispatch(Kernel.ComputeDivergence, s.x, s.y, s.z);
 
-			this.dispatcher.Dispatch(Kernel.ClearPressure, s.x, s.y, s.z);
-			GPUBufferVariable<float>.SwapBuffer(this.gpuData.pressureRead, this.gpuData.pressureWrite);
+			//Do not clear pressure so that jacobi can get better converage
+			// this.dispatcher.Dispatch(Kernel.ClearPressure, s.x, s.y, s.z);
+			// GPUBufferVariable<float>.SwapBuffer(this.gpuData.pressureRead, this.gpuData.pressureWrite);
 
             foreach(var i in Enumerable.Range(0, this.Configure.D.pressureIteration))
             {

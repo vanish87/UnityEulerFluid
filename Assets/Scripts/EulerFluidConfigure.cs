@@ -18,7 +18,7 @@ namespace EulerFluid
 			[Shader(Name = "_PressureDissipation")] public float pressureDissipation = 0.999f;
 			[Shader(Name = "_DiffuseIteration")] public int diffuseIteration = 10;
 			[Shader(Name = "_PressureIteration")] public int pressureIteration = 50;
-			[Shader(Name = "_Alpha")] public float alpha = -1;
+			[Shader(Name = "_Viscosity")] public float viscosity = -1;
 		}
 	}
 }

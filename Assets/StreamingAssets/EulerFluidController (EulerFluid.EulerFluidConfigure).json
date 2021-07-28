@@ -1,5 +1,5 @@
 ﻿{
-    "timeStep": 0.05000000074505806,
+    "timeStep": 0.009999999776482582,
     "fieldSize": {
         "x": 512,
         "y": 512,
@@ -8,6 +8,6 @@
     "velocityDissipation": 0.9900000095367432,
     "pressureDissipation": 0.9900000095367432,
     "diffuseIteration": 10,
-    "pressureIteration": 200,
-    "alpha": -1.0
+    "pressureIteration": 50,
+    "viscosity": 1.0
 }

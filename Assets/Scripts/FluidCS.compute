@@ -1,3 +1,4 @@
+#pragma kernel ApplyBoundary
 #pragma kernel AdvectVelocity
 #pragma kernel AdvectPressure
 #pragma kernel Diffuse
@@ -22,39 +23,54 @@ RWTexture2D<float4> _VelocityTexture;
 
 float _VelocityDissipation;
 float _PressureDissipation;
+float _Viscosity;
 
 float _TimeStep;
 float _Decay;
 float3 _FieldSize;
 
-float _Alpha;
-
 float2 _MousePos;
 float2 _MouseVel;
+
+ static const int3 l = int3(-1,0, 0);
+ static const int3 r = int3(1, 0, 0);
+ static const int3 u = int3(0, 1, 0);
+ static const int3 d = int3(0,-1, 0);
+ static const int3 f = int3(0, 0, 1);
+ static const int3 b = int3(0, 0,-1);
+
 
 int UVToIndex(int3 uv, int3 size)
 {
     uv = clamp(uv, 0, size-1);
-    return uv.x + uv.y * size.x; + uv.z * size.x * size.y;
+    return uv.x + uv.y * size.x + uv.z * size.x * size.y;
 }
 
 int3 GetBackwardUV(int3 uv, float dt)
 {
-    int id = UVToIndex(uv, _FieldSize);
-    return uv - dt * _VelocityRead[id];
+    return uv - dt * _VelocityRead[UVToIndex(uv, _FieldSize)] * _FieldSize;
 }
 
 THREAD
 void ClearPressure (uint3 id : SV_DispatchThreadID)
 {
-    int3 uv = id.xyz;
+    int3 uv = id;
     _PressureWrite[UVToIndex(uv, _FieldSize)] = 0;
+}
+
+THREAD
+void ApplyBoundary (uint3 id : SV_DispatchThreadID)
+{
+    int3 uv = id;
+    float3 vel = _VelocityRead[UVToIndex(uv, _FieldSize)];
+    if(uv.x == 0 || uv.y == 0 || uv.z == 0 || uv.x == _FieldSize.x-1 || uv.y == _FieldSize.y-1 || uv.z == _FieldSize.z-1) vel = 0;
+    _VelocityWrite[UVToIndex(uv, _FieldSize)] = vel;
 }
 
 THREAD
 void AdvectVelocity (uint3 id : SV_DispatchThreadID)
 {
-    int3 uv = id.xyz;
+    int3 uv = id;
     int3 backUV = GetBackwardUV(uv, _TimeStep);
     _VelocityWrite[UVToIndex(uv, _FieldSize)] = _VelocityRead[UVToIndex(backUV, _FieldSize)] * _VelocityDissipation;
 }
@@ -62,14 +78,27 @@ void AdvectVelocity (uint3 id : SV_DispatchThreadID)
 THREAD
 void AdvectPressure (uint3 id : SV_DispatchThreadID)
 {
-    int3 uv = id.xyz;
+    int3 uv = id;
     int3 backUV = GetBackwardUV(uv, _TimeStep);
     _PressureWrite[UVToIndex(uv, _FieldSize)] = _PressureRead[UVToIndex(backUV, _FieldSize)] * _PressureDissipation;
 }
+
 THREAD
 void Diffuse (uint3 id : SV_DispatchThreadID)
 {
-    
+    int3 uv = id;
+    bool is3D = _FieldSize.z > 1;
+    float3 vel = _VelocityRead[UVToIndex(uv, _FieldSize)];
+    float3 v = 0;
+    v += _VelocityRead[UVToIndex(uv + u, _FieldSize)] + _VelocityRead[UVToIndex(uv + d, _FieldSize)];
+    v += _VelocityRead[UVToIndex(uv + r, _FieldSize)] + _VelocityRead[UVToIndex(uv + l, _FieldSize)];
+    if(is3D) v += _VelocityRead[UVToIndex(uv + f, _FieldSize)] + _VelocityRead[UVToIndex(uv + b, _FieldSize)];
+
+    float alpha = 1.0f/(_Viscosity * _TimeStep + 0.00001);
+    float beta = is3D?6.0f:4.0f+ alpha;
+    v = (v + alpha * vel)/beta;
+
+    _VelocityWrite[UVToIndex(uv, _FieldSize)] = v;
 }
 
 THREAD
@@ -79,11 +108,10 @@ void AddForce (uint3 id : SV_DispatchThreadID)
     int2 pos = _MousePos * _FieldSize.xy;
     float3 current = _VelocityRead[UVToIndex(uv, _FieldSize)];
 
-    if(distance(uv.xy, pos) < 50)
+    if(distance(uv.xy, pos) < 10)
     {
          current += float3(_MouseVel,0);
     }
-    if(uv.x == 0 || uv.y == 0 || uv.z == 0 || uv.x == _FieldSize.x-1 || uv.y == _FieldSize.y-1 || uv.z == _FieldSize.z) current = 0;
 
     _VelocityWrite[UVToIndex(uv, _FieldSize)] = current;
 }
@@ -92,17 +120,10 @@ THREAD
 void ComputeDivergence (uint3 id : SV_DispatchThreadID)
 {
     int3 uv = id.xyz;
-    int3 u = int3(0, 1, 0);
-    int3 d = int3(0,-1, 0);
-    int3 l = int3(1, 0, 0);
-    int3 r = int3(-1,0, 0);
-    int3 f = int3(0, 0, 1);
-    int3 b = int3(0, 0,-1);
     float div = 0;
-    div += _VelocityRead[UVToIndex(uv + u, _FieldSize)].x - _VelocityRead[UVToIndex(uv + d, _FieldSize)].x;
-    div += _VelocityRead[UVToIndex(uv + r, _FieldSize)].y - _VelocityRead[UVToIndex(uv + l, _FieldSize)].y;
-    div += _VelocityRead[UVToIndex(uv + f, _FieldSize)].z - _VelocityRead[UVToIndex(uv + b, _FieldSize)].z;
-
+    div += _VelocityRead[UVToIndex(uv + r, _FieldSize)].x - _VelocityRead[UVToIndex(uv + l, _FieldSize)].x;
+    div += _VelocityRead[UVToIndex(uv + u, _FieldSize)].y - _VelocityRead[UVToIndex(uv + d, _FieldSize)].y;
+    // div += _VelocityRead[UVToIndex(uv + f, _FieldSize)].z - _VelocityRead[UVToIndex(uv + b, _FieldSize)].z;
     div *= 0.5f;
     
     _VelocityDivergenceWrite[UVToIndex(uv, _FieldSize)] = div;
@@ -112,12 +133,6 @@ THREAD
 void ComputePressure (uint3 id : SV_DispatchThreadID)
 {
     int3 uv = id.xyz;
-    int3 u = int3(0, 1, 0);
-    int3 d = int3(0,-1, 0);
-    int3 l = int3(1, 0, 0);
-    int3 r = int3(-1,0, 0);
-    int3 f = int3(0, 0, 1);
-    int3 b = int3(0, 0,-1);
     bool is3D = _FieldSize.z > 1;
     float div = _VelocityDivergenceRead[UVToIndex(uv, _FieldSize)];
     float p = 0;
@@ -126,8 +141,9 @@ void ComputePressure (uint3 id : SV_DispatchThreadID)
     p += _PressureRead[UVToIndex(uv + r, _FieldSize)] + _PressureRead[UVToIndex(uv + l, _FieldSize)];
     if(is3D) p += _PressureRead[UVToIndex(uv + f, _FieldSize)] + _PressureRead[UVToIndex(uv + b, _FieldSize)];
 
+    float alpha = -1;
     float beta = is3D?6:4;
-    p = (p + _Alpha * div)/beta;
+    p = (p + alpha * div)/beta;
 
     _PressureWrite[UVToIndex(uv, _FieldSize)] = p;
 }
@@ -136,22 +152,22 @@ THREAD
 void SubPressureGradient (uint3 id : SV_DispatchThreadID)
 {
     int3 uv = id.xyz;
-    int3 u = int3(0, 1, 0);
-    int3 d = int3(0,-1, 0);
-    int3 l = int3(1, 0, 0);
-    int3 r = int3(-1,0, 0);
-    int3 f = int3(0, 0, 1);
-    int3 b = int3(0, 0,-1);
     float3 vel = _VelocityRead[UVToIndex(uv, _FieldSize)];
     float3 gradient = 0;
     
-    gradient.x = _PressureRead[UVToIndex(uv + u, _FieldSize)] - _PressureRead[UVToIndex(uv + d, _FieldSize)];
-    gradient.y = _PressureRead[UVToIndex(uv + r, _FieldSize)] - _PressureRead[UVToIndex(uv + l, _FieldSize)];
-    gradient.z = _PressureRead[UVToIndex(uv + f, _FieldSize)] - _PressureRead[UVToIndex(uv + b, _FieldSize)];
+    gradient.x = _PressureRead[UVToIndex(uv + r, _FieldSize)] - _PressureRead[UVToIndex(uv + l, _FieldSize)];
+    gradient.y = _PressureRead[UVToIndex(uv + u, _FieldSize)] - _PressureRead[UVToIndex(uv + d, _FieldSize)];
+    // gradient.z = _PressureRead[UVToIndex(uv + f, _FieldSize)] - _PressureRead[UVToIndex(uv + b, _FieldSize)];
     gradient *= 0.5f;
-
     
-    _VelocityWrite[UVToIndex(uv, _FieldSize)] = vel - gradient;
+    vel = vel - gradient;
 
-    _VelocityTexture[uv.xy] = float4(vel - gradient,1);
+    _VelocityWrite[UVToIndex(uv, _FieldSize)] = vel;
+
+    float p = _PressureRead[UVToIndex(uv, _FieldSize)];
+    float speed = length(vel);
+    float3 nVel = speed > 0? vel/100:0;
+    _VelocityTexture[uv.xy] = float4((vel + 1)*0.5f,1);
+    // _VelocityTexture[uv.xy] = float4(vel,1);
+    // _VelocityTexture[uv.xy] = float4(p,0,0,1);
 }

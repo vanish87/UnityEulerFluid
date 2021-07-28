@@ -197,16 +197,16 @@ MonoBehaviour:
   preset: 0
   isSyncing: 0
   data:
-    timeStep: 0.1
+    timeStep: 0.01
     fieldSize:
       x: 512
       y: 512
       z: 1
-    velocityDissipation: 0.999
-    pressureDissipation: 0.999
+    velocityDissipation: 0.99
+    pressureDissipation: 0.99
     diffuseIteration: 10
     pressureIteration: 50
-    alpha: -1
+    viscosity: 1
 --- !u!1 &525695567
 GameObject:
   m_ObjectHideFlags: 0
