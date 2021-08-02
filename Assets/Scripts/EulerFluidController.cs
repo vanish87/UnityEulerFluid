@@ -135,7 +135,7 @@ namespace EulerFluid
             var s = this.Configure.D.fieldSize;
             this.dispatcher.Dispatch(Kernel.ComputeDivergence, s.x, s.y, s.z);
 
-			//Do not clear pressure so that jacobi can get better converage
+			//Do not clear pressure so that jacobi can get better coverage
 			// this.dispatcher.Dispatch(Kernel.ClearPressure, s.x, s.y, s.z);
 			// GPUBufferVariable<float>.SwapBuffer(this.gpuData.pressureRead, this.gpuData.pressureWrite);
 

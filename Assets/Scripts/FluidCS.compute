@@ -106,10 +106,17 @@ void AddForce (uint3 id : SV_DispatchThreadID)
     int3 uv = id;
     int2 pos = _MousePos * _FieldSize.xy;
     float3 current = _VelocityRead[UVToIndex(uv, _FieldSize)];
+    float r = 128;
 
-    if(distance(uv.xy, pos) < 40)
+    if(distance(uv.xy, pos) < r)
     {
-         current += float3(_MouseVel,0);
+        //  current += float3(_MouseVel,0);
+        const float PI = 3.141592653;
+        float vel = saturate(distance(uv.xy, pos)/r);
+        float angle = lerp(-PI/6, -PI/16, vel);
+        float2x2 mat = float2x2(cos(angle), -sin(angle), sin(angle), cos(angle));
+        float2 force = pos - uv.xy;
+        current += float3(mul(mat, force),0) * 0.005 *(1-vel);
     }
 
     _VelocityWrite[UVToIndex(uv, _FieldSize)] = current;
