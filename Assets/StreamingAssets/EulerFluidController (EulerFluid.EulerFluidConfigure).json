@@ -8,6 +8,6 @@
     "velocityDissipation": 0.9900000095367432,
     "pressureDissipation": 0.9900000095367432,
     "diffuseIteration": 20,
-    "pressureIteration": 80,
+    "pressureIteration": 20,
     "viscosity": 1.0
 }
